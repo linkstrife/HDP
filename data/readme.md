@@ -20,16 +20,14 @@ Epoch 5 | Perplexity per word: [66.904]
 ## Variational Inference LDA (gensim.LdaModel.ldamodel)
 Topics:
 
-(0, '0.003*"loss" + 0.003*"large" + 0.003*"mechanism" + 0.003*"convex" + 0.003*"learning" + 0.003*"stability" + 0.003*"show" + 0.003*"can" + 0.003*"algorithmic" + 0.003*"process"')
+(0, '0.028*"loss" + 0.024*"sln" + 0.024*"convex" + 0.021*"mechanism" + 0.015*"classification" + 0.015*"robust" + 0.015*"potential" + 0.015*"unhinged" + 0.011*"show" + 0.010*"result"')
 
-(1, '0.014*"distribution" + 0.014*"large" + 0.014*"parameter" + 0.010*"learning" + 0.010*"data" + 0.010*"likelihood" + 0.010*"carlo" + 0.010*"posterior" + 0.010*"approach" + 0.010*"machine"')
+(1, '0.022*"stability" + 0.018*"algorithmic" + 0.014*"data" + 0.011*"hypothesis" + 0.011*"size" + 0.011*"process" + 0.011*"complexity" + 0.011*"generalization" + 0.011*"space" + 0.010*"mechanism"')
 
-(2, '0.047*"mechanism" + 0.021*"crowdsourcing" + 0.021*"payment" + 0.021*"possible" + 0.014*"data" + 0.014*"lunch" + 0.014*"may" + 0.014*"workers" + 0.014*"show" + 0.014*"free"')
+(2, '0.014*"used" + 0.014*"machine" + 0.014*"distribution" + 0.014*"variance" + 0.014*"stochastic" + 0.014*"learning" + 0.014*"monte" + 0.014*"carlo" + 0.014*"covariance" + 0.014*"posterior"')
 
-(3, '0.029*"loss" + 0.025*"stability" + 0.021*"algorithmic" + 0.021*"sln" + 0.021*"convex" + 0.017*"result" + 0.013*"potential" + 0.013*"unhinged" + 0.013*"robust" + 0.013*"can"')
-
-(4, '0.003*"mechanism" + 0.003*"loss" + 0.003*"data" + 0.003*"convex" + 0.003*"learning" + 0.003*"large" + 0.003*"propose" + 0.003*"sln" + 0.003*"parameter" + 0.003*"stability"')
+(3, '0.003*"loss" + 0.003*"convex" + 0.003*"data" + 0.003*"learning" + 0.003*"show" + 0.003*"sln" + 0.003*"stability" + 0.003*"large" + 0.003*"algorithmic" + 0.003*"can"')
 
 Perplexity:
 
-Per word perplexity: 64.203
+Per word perplexity: 67.218

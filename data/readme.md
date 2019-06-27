@@ -17,7 +17,7 @@ Perplexity:
 
 Epoch 5 | Perplexity per word: [66.904]
 
-## Variational Inference LDA (gensim.LdaModel.ldamodel)
+## Variational Inference LDA (gensim.models.ldamodel.LdaModel)
 Topics:
 
 (0, '0.028*"loss" + 0.024*"sln" + 0.024*"convex" + 0.021*"mechanism" + 0.015*"classification" + 0.015*"robust" + 0.015*"potential" + 0.015*"unhinged" + 0.011*"show" + 0.010*"result"')

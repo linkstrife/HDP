@@ -115,15 +115,17 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
     #        table_count_matrix[t][int(word)-1] += 1
 
     for epoch_iter in range(Iter):
-        table_count_matrix = np.zeros((K, vocab_size), dtype=np.int32) # word counts in each table
-        topic_table_count = np.zeros(K, dtype=np.int32) # number of tables belong to topic
-        table_topic_map = np.zeros(K, dtype=np.int32) # table:topic
         for i, doc in enumerate(data_set):
+            table_count_matrix = np.zeros((K, vocab_size), dtype=np.int32)  # word counts in each table
+            topic_table_count = np.zeros(K, dtype=np.int32)  # number of tables belong to topic
+            table_topic_map = np.zeros(K, dtype=np.int32)  # table:topic
             for j, token in enumerate(doc):
-                    t_list = np.ones(K, dtype=np.int32) # random initialization with table 1
+                    t_list = np.zeros(K, dtype=np.int32) # random initialization with table 1
+                    t_list[K-1] = 1
                     t_table = np.zeros((GibbsIter, K))
-                    print('Epoch: ', epoch_iter)
-                    print("Epoch {:d} | Sampling table for token {:s}...".format(epoch_iter, token))
+                    print("Epoch {:d} | Sampling table for token {:s}...".format(epoch_iter+1, token))
+
+                    # —————— Gibbs Sampling for Tables ——————
                     for it in range(GibbsIter + burn_in):
                         # print("Sampling table for {:s} | iter: {:d} | burn-in: {:d}".format(token, it+1, burn_in))
                         for t in range(K): # probabilities for selecting tables
@@ -136,35 +138,33 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
                             counts = np.append(counts, alpha) # append new table. [all table assignments, new table]
                             unique = np.append(unique, [max(unique) + 1]) # append new table index
                             u = np.random.uniform() * np.sum(counts)
-                            for j, p in enumerate(counts):
-                                if np.sum(counts[:j+1]) > u:
-                                    t_list[t] = unique[j]
+                            for n, p in enumerate(counts):
+                                if np.sum(counts[:n+1]) > u:
+                                    t_list[t] = unique[n]
                                     break
+                        # new_table[i] = old_table[i]+1, for i in range(len(old_table))
                         old_table = np.unique(t_list) # the table indexes
                         new_table = np.array(range(1, len(old_table) + 1)) # add a new table index
                         for k in range(len(old_table)):
-                            t_list[t_list == old_table[k]] = new_table[k] # mapping table index
+                            # for all elements in t_list that equals to old_table[k], replace it with new_table[k]
+                            t_list[t_list == old_table[k]] = new_table[k] # mapping table index, new_index = old_index+1
                         if it >= burn_in:
                             t_table[it - burn_in, :] = t_list
                     sample_list = [Counter(samples).most_common(1)[0][0] for samples in t_table]
                     sampled_t = int(Counter(sample_list).most_common(1)[0][0])
-                    print("Sampled table {:d}. Start from table 1.".format(int(sampled_t)))
+                    print("Sampled table {:d}, topic {:d}.".format(int(sampled_t), table_topic_map[int(sampled_t-1)]+1))
 
                     if sampled_t > K:
                         sampled_t = np.random.randint(0, K)
                         print("Table upper bound reached. Assigned to a random table {:d}.".format(sampled_t))
 
                     if np.sum(table_count_matrix[sampled_t]) == 0:
-                        topic_list=[]
                         print("Sampling topic for empty table {:d}...".format(sampled_t))
-                        for it in range(GibbsIter + burn_in):
-                            # print("Sampling topic for new table {:d} | Gibbs iter: {:d} | burn-in: {:d}".format(sampled_t, it+1, burn_in))
-                            topic = gibbs_sampling_topic(gamma, eta, table_count_matrix, topic_word_matrix, sampled_t-1,
-                                                         topic_table_count, vocab_size)
-                            topic_list.append(topic)
-                        topic_list = topic_list[burn_in:]
-                        sampled_topic = Counter(topic_list).most_common(1)[0][0]
-                        print("Sampled topic:", sampled_topic)
+
+                        # —————— Gibbs Sampling for Topics ——————
+                        # print("Sampling topic for new table {:d} | Gibbs iter: {:d} | burn-in: {:d}".format(sampled_t, it+1, burn_in))
+                        sampled_topic = gibbs_sampling_topic(GibbsIter, gamma, topic_word_matrix) - 1
+                        print("Sampled topic:", sampled_topic + 1)
                         table_count_matrix[sampled_t, int(token) - 1] += 1
                         doc_topic_matrix[i, table_topic_map[sampled_t]] += 1
                         topic_word_matrix[table_topic_map[sampled_t], int(token) - 1] += 1
@@ -178,61 +178,52 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
                         doc_topic_matrix[i, table_topic_map[sampled_t]] += 1
                         topic_word_matrix[table_topic_map[sampled_t], int(token) - 1] += 1
 
-                    if j < len(doc)-1:
+                    if j < len(doc)-2:
                         print('—————  Next token  —————')
 
         norm_doc_topic_matrix = normalize_row(doc_topic_matrix)
         norm_topic_word_matrix = normalize_row(topic_word_matrix)
 
-        print('Epoch {:d} | Perplexity per word:'.format(epoch_iter + 1),
+        print('Epoch {:d} | Perplexity per word:'.format(epoch_iter+1),
               get_perplexity(norm_doc_topic_matrix, norm_topic_word_matrix, word_count))
 
-        if epoch_iter < Iter-1:
+        if epoch_iter != Iter-1:
             print('—————  Next epoch  —————')
 
         if epoch_iter == Iter-1:
             return norm_doc_topic_matrix, norm_topic_word_matrix
 
-def gibbs_sampling_topic(Gamma, eta, table_count_matrix, topic_word_matrix, T, topic_table_count, vocab_size):
+def gibbs_sampling_topic(GibbsIter, Gamma, topic_word_matrix):
     K = len(topic_word_matrix)
-    scale = 0.1
 
-    n_k_list = []
-    # word counts of each topic
-    for k in range(K):
-        n_k = np.sum(topic_word_matrix[k])
-        n_k_list.append(n_k)
+    z_list = np.zeros(K, dtype=np.int32)  # random initialization with table 1
+    z_list[K-1] = 1
+    z_table = np.zeros((GibbsIter, K))
 
-    # word count of each table
-    t_count = []
-    for i, t in enumerate(table_count_matrix):
-        t_count.append(np.sum(table_count_matrix[i]))
+    for it in range(GibbsIter + burn_in):
+        for k in range(K):
+            z_list[k] = 0
+            unique, counts = np.unique(z_list, return_counts=True)
+            if unique[0] == 0:
+                unique = np.delete(unique, 0)
+                counts = np.delete(counts, 0)
+            counts = np.append(counts, Gamma)  # append new topic.
+            unique = np.append(unique, [max(unique) + 1])  # append new topic index
+            u = np.random.uniform() * np.sum(counts)
+            for j, p in enumerate(counts):
+                if np.sum(counts[:j + 1]) > u:
+                    z_list[k] = unique[j]
+                    break
+        old_table = np.unique(z_list)  # the topic indexes
+        new_table = np.array(range(1, len(old_table) + 1))  # add a new table index
+        for k in range(len(old_table)):
+            z_list[z_list == old_table[k]] = new_table[k]  # mapping table index
+        if it >= burn_in:
+            z_table[it - burn_in, :] = z_list
+    sample_list = [Counter(samples).most_common(1)[0][0] for samples in z_table]
+    sampled_z = int(Counter(sample_list).most_common(1)[0][0])
 
-    table_k_prob=[]
-    for k, topic_k in enumerate(topic_word_matrix):
-        # the value of gamma function is likely to explode when vocabulary size is large
-        left_term = scipy.special.gamma(scale * ((n_k_list[k] - t_count[T]) + (vocab_size * eta))) \
-                    / scipy.special.gamma(scale * ((n_k_list[k] - t_count[T]) + (vocab_size * eta) + t_count[T]))
-        right_term = 1.0
-        for word, freq in enumerate(topic_k):
-            numer = scipy.special.gamma(scale * ((topic_word_matrix[k][word] - table_count_matrix[T][word])
-                                                + table_count_matrix[T][word] + table_count_matrix[T][word] + eta))
-            denom = scipy.special.gamma(scale * ((topic_word_matrix[k][word] - table_count_matrix[T][word]) + eta))
-            right_term *= (numer / denom)
-
-        # probability list of CURRENT table T's topic assignment
-        table_k_prob.append([(topic_table_count[k]-1) * left_term * right_term])
-        if k == len(topic_word_matrix)-1:
-            table_k_prob.append([Gamma * left_term * right_term])
-
-    table_k_prob = normalize_single_row(table_k_prob)
-    u = np.random.uniform(0.0, 0.99999) # truncation to fit the error between normalization sum and 1.0
-    topic = 0
-    for k, prob in enumerate(table_k_prob):
-        if np.sum(table_k_prob[:k]) > u:
-            topic =  k
-            break
-    return topic
+    return sampled_z
 
 
 def get_perplexity(doc_topic_mat, topic_word_mat, word_count):
@@ -297,7 +288,7 @@ class hdpModel(object):
             topic = []
             for wid in items.keys():
                 if np.sum([v for v in items.values()]) != 0.0:
-                    topic.append((self.word_id_dict[int(wid)+1], format(float(items[wid]), '.3f'))) # id:prob
+                    topic.append((self.word_id_dict[int(wid)+1], format(float(items[wid]), '.5f'))) # id:prob
             if len(topic) != 0:
                 topic_list.append(topic)
 
@@ -317,12 +308,12 @@ if __name__ == '__main__':
     burn-in: number of early samples to be truncated
     The last two parameters are data set path and vocabulary size respectively
     """
-    num_topic = 10
-    gamma = 5.0
+    num_topic = 50
+    gamma = 10.0
     eta = 0.01
-    alpha = 10.0
+    alpha = 5.0
     epoch = 5
-    gibbs_iter = 10
-    burn_in = 5
+    gibbs_iter = 20
+    burn_in = 10
     hdp = hdpModel(num_topic, gamma, eta, alpha, epoch, gibbs_iter, burn_in, './data/NIPS/train.id', 307)
     hdp.print_topics(5, 10) # required #topics & #topic words

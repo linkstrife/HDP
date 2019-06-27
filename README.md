@@ -11,6 +11,8 @@ python 3.6.0, tensorflow 1.14, tensorflow probability 0.7.0, SciPy 1.0.0
 Lihui Lin, School of Data and Computer Science, Sun Yat-sen University.
 
 # Results
+The results below provides 10 topic words of the 5 representative topics learned by HDP and LDA, the perplexities are also computed to evaluate the models.
+
 ## HDP (this implementation)
 Topics:
 
@@ -41,6 +43,6 @@ Topics:
 
 (4, '0.003*"loss" + 0.003*"can" + 0.003*"learning" + 0.003*"propose" + 0.003*"large" + 0.003*"approach" + 0.003*"sln" + 0.003*"algorithmic" + 0.003*"low" + 0.003*"noise"')
 
-Perplexity:
+Perplexity (after 1000 iterations):
 
 Per word perplexity: 72.549

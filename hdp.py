@@ -100,11 +100,8 @@ def document_level_G(G0, alpha):
 def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alpha, Gd, burn_in):
     K = len(Gd) # K is very large
 
-    table_count_matrix = np.zeros((K, vocab_size), dtype=np.int32) # word counts in each table
     doc_topic_matrix = np.zeros((len(data_set), K), dtype=np.int32)
     topic_word_matrix = np.zeros((K, vocab_size), dtype=np.int32)
-    topic_table_count = np.zeros(K, dtype=np.int32) # number of tables belong to topic
-    table_topic_map = np.zeros(K, dtype=np.int32) # table:topic
 
     # stochastic initialization
     #for i, doc in enumerate(data_set):
@@ -118,6 +115,9 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
     #        table_count_matrix[t][int(word)-1] += 1
 
     for epoch_iter in range(Iter):
+        table_count_matrix = np.zeros((K, vocab_size), dtype=np.int32) # word counts in each table
+        topic_table_count = np.zeros(K, dtype=np.int32) # number of tables belong to topic
+        table_topic_map = np.zeros(K, dtype=np.int32) # table:topic
         for i, doc in enumerate(data_set):
             for j, token in enumerate(doc):
                     t_list = np.ones(K, dtype=np.int32) # random initialization with table 1

@@ -104,7 +104,7 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
     topic_word_matrix = np.zeros((K, vocab_size), dtype=np.int32)
 
     # stochastic initialization
-    #for i, doc in enumerate(data_set):
+    # for i, doc in enumerate(data_set):
     #    for word in doc:
     #        t = np.random.randint(0, K-1)
     #        k = np.random.randint(0, K-1)
@@ -150,8 +150,10 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
                             t_list[t_list == old_table[k]] = new_table[k] # mapping table index, new_index = old_index+1
                         if it >= burn_in:
                             t_table[it - burn_in, :] = t_list
-                    sample_list = [Counter(samples).most_common(1)[0][0] for samples in t_table]
+                    sample_list = [Counter(samples).most_common(1)[0][0] for samples in t_table[burn_in:GibbsIter, :]]
                     sampled_t = int(Counter(sample_list).most_common(1)[0][0])
+                    # sample_list = np.ceil(np.sum(t_table[burn_in:GibbsIter,:], axis=0) / GibbsIter)
+                    # sampled_t = int(Counter(sample_list).most_common(1)[0][0])
                     print("Sampled table {:d}, topic {:d}.".format(int(sampled_t), table_topic_map[int(sampled_t-1)]+1))
 
                     if sampled_t > K:
@@ -184,8 +186,8 @@ def inference(Iter, GibbsIter, data_set, vocab_size, word_count, gamma, eta, alp
         norm_doc_topic_matrix = normalize_row(doc_topic_matrix)
         norm_topic_word_matrix = normalize_row(topic_word_matrix)
 
-        print('Epoch {:d} | Perplexity per word:'.format(epoch_iter+1),
-              get_perplexity(norm_doc_topic_matrix, norm_topic_word_matrix, word_count))
+        print('Epoch {:d} | Perplexity: '.format(epoch_iter+1),
+              get_perplexity(data_set, norm_doc_topic_matrix, norm_topic_word_matrix, word_count))
 
         if epoch_iter != Iter-1:
             print('—————  Next epoch  —————')
@@ -220,22 +222,27 @@ def gibbs_sampling_topic(GibbsIter, Gamma, topic_word_matrix):
             z_list[z_list == old_table[k]] = new_table[k]  # mapping table index
         if it >= burn_in:
             z_table[it - burn_in, :] = z_list
-    sample_list = [Counter(samples).most_common(1)[0][0] for samples in z_table]
+    sample_list = [Counter(samples).most_common(1)[0][0] for samples in z_table[burn_in:GibbsIter, :]]
     sampled_z = int(Counter(sample_list).most_common(1)[0][0])
 
     return sampled_z
 
 
-def get_perplexity(doc_topic_mat, topic_word_mat, word_count):
+def get_perplexity(text_data, doc_topic_mat, topic_word_mat, word_count):
     global_topic_dist = np.zeros((1,len(doc_topic_mat[1])))
     global_topic_dist[0] = normalize_single_row(np.sum(doc_topic_mat, axis=0))
+    for d, doc_topic in enumerate(doc_topic_mat):
+        doc_topic_mat[d] = doc_topic/np.linalg.norm(doc_topic, ord=1)
 
-    p_wd_sum = tf.matmul(tf.convert_to_tensor(global_topic_dist, dtype=tf.float64), # 1 x K
-                         tf.convert_to_tensor(topic_word_mat, dtype=tf.float64)) # K x V
-    log_p_wd_sum = tf.reduce_sum(tf.math.log(p_wd_sum), -1)
-    with tf.Session():
-        log_p_wd_sum = log_p_wd_sum.eval()
-    perplexity = np.exp(-1 * log_p_wd_sum / np.sum(word_count))
+    with tf.compat.v1.Session():
+        p_wd = tf.matmul(tf.convert_to_tensor(doc_topic_mat, dtype=tf.float64), # D x K
+                         tf.convert_to_tensor(topic_word_mat, dtype=tf.float64)).eval() # K x V
+
+    sum_log_pw = 0.0
+    for d, doc in enumerate(text_data):
+        for t, token in enumerate(doc):
+            sum_log_pw += np.log(p_wd[d, t])
+    perplexity = np.exp(-1 * sum_log_pw / np.sum(word_count))
 
     return np.around(perplexity, decimals=3)
 
@@ -308,12 +315,12 @@ if __name__ == '__main__':
     burn-in: number of early samples to be truncated
     The last two parameters are data set path and vocabulary size respectively
     """
-    num_topic = 50
-    gamma = 10.0
+    num_topic = 10
+    gamma = 1.5
     eta = 0.01
-    alpha = 5.0
-    epoch = 5
-    gibbs_iter = 20
-    burn_in = 10
-    hdp = hdpModel(num_topic, gamma, eta, alpha, epoch, gibbs_iter, burn_in, './data/NIPS/train.id', 307)
+    alpha = 1.0
+    epoch = 1
+    gibbs_iter = 2
+    burn_in = 1
+    hdp = hdpModel(num_topic, gamma, eta, alpha, epoch, gibbs_iter, burn_in, './data/NIPS/train.id', 1773)
     hdp.print_topics(5, 10) # required #topics & #topic words
